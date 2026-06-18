@@ -1,4 +1,8 @@
-"""User response schema."""
+"""
+Module: schemas/user.py
+Purpose: User response schema.
+Author: ApplyPilot
+"""
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr

@@ -3,15 +3,22 @@ Module: deps.py
 Purpose: FastAPI dependencies for DB session, Redis, and current user.
 Author: ApplyPilot
 """
+import uuid as _uuid
 from collections.abc import Iterator
 
 import redis
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError
 from sqlalchemy.orm import Session
 
 from config import settings
 from database import SessionLocal
+from models.user import User
+from security.jwt import decode_token
 
 _redis_pool = redis.ConnectionPool.from_url(settings.redis_url)
+_bearer = HTTPBearer(auto_error=False)
 
 
 def get_db() -> Iterator[Session]:
@@ -26,16 +33,6 @@ def get_db() -> Iterator[Session]:
 def get_redis() -> redis.Redis:
     """Return a Redis client bound to the shared pool."""
     return redis.Redis(connection_pool=_redis_pool)
-
-
-import uuid as _uuid
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
-from models.user import User
-from security.jwt import decode_token
-
-_bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(

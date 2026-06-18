@@ -1,4 +1,5 @@
 import pytest
+from jose import JWTError
 from security.jwt import hash_password, verify_password, create_access_token, decode_token
 
 
@@ -17,5 +18,5 @@ def test_access_token_encodes_subject() -> None:
 
 
 def test_decode_rejects_garbage() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(JWTError):
         decode_token("not-a-jwt")

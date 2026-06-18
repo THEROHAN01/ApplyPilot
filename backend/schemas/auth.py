@@ -1,4 +1,8 @@
-"""Auth request/response schemas."""
+"""
+Module: schemas/auth.py
+Purpose: Auth request/response schemas.
+Author: ApplyPilot
+"""
 from pydantic import BaseModel, EmailStr, Field
 
 
