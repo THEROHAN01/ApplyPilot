@@ -1,5 +1,8 @@
-# backend/models/feedback.py
-"""Module: models/feedback.py — User rating feedback on an application's email."""
+"""
+Module: models/feedback.py
+Purpose: User rating feedback on an application's email.
+Author: ApplyPilot
+"""
 import uuid
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, Text, func

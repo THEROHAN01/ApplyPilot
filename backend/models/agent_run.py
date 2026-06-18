@@ -1,5 +1,8 @@
-# backend/models/agent_run.py
-"""Module: models/agent_run.py — Background agent task run record."""
+"""
+Module: models/agent_run.py
+Purpose: Background agent task run record.
+Author: ApplyPilot
+"""
 import enum
 import uuid
 from datetime import datetime

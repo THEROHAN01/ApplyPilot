@@ -1,5 +1,8 @@
-# backend/models/usage_log.py
-"""Module: models/usage_log.py — Per-user monthly usage counters."""
+"""
+Module: models/usage_log.py
+Purpose: Per-user monthly usage counters.
+Author: ApplyPilot
+"""
 import uuid
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID

@@ -1,5 +1,8 @@
-# backend/models/contact.py
-"""Module: models/contact.py — Recruiter/hiring contact record."""
+"""
+Module: models/contact.py
+Purpose: Recruiter/hiring contact record.
+Author: ApplyPilot
+"""
 import uuid
 from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func

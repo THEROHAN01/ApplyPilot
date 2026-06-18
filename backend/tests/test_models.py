@@ -13,3 +13,9 @@ def test_application_status_enum_values() -> None:
         "pending", "generated", "sent", "opened", "replied", "rejected", "offer"
     }
     assert Application.__tablename__ == "applications"
+
+
+def test_application_has_job_relationship() -> None:
+    from sqlalchemy import inspect as sa_inspect
+    from models import Application
+    assert "job" in sa_inspect(Application).relationships

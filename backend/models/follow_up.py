@@ -1,5 +1,8 @@
-# backend/models/follow_up.py
-"""Module: models/follow_up.py — Scheduled follow-up for an application."""
+"""
+Module: models/follow_up.py
+Purpose: Scheduled follow-up for an application.
+Author: ApplyPilot
+"""
 import uuid
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, String, Text

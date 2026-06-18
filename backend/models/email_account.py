@@ -1,5 +1,8 @@
-# backend/models/email_account.py
-"""Module: models/email_account.py — Connected email account with encrypted tokens."""
+"""
+Module: models/email_account.py
+Purpose: Connected email account with encrypted tokens.
+Author: ApplyPilot
+"""
 import enum
 import uuid
 from datetime import datetime
