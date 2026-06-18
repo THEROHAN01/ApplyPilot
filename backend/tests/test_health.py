@@ -1,3 +1,4 @@
+"""Tests for the /health liveness endpoint."""
 from fastapi.testclient import TestClient
 
 
