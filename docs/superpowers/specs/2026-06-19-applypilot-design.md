@@ -32,6 +32,7 @@ one spec→plan→build cycle starting with Phase 1.
 | D3 | Auth + storage | **Self-contained, Supabase-compatible.** Local JWT issuer/verifier + MinIO (S3-compatible). | Runs fully offline with `docker-compose up`. Interfaces kept Supabase-shaped so real Supabase can be swapped in via env later. |
 | D4 | LLM | **Anthropic Claude `claude-sonnet-4-6`** for generation; structured JSON outputs. | Per spec. Wrapped with retry/backoff. |
 | D5 | Browser automation | **Playwright (Python, async)** for scraping + form fill. | Per spec. Anti-bot headers, timeout + CAPTCHA-detection handling. |
+| D6 | Frontend visual design | **Blueprint design system** (technical/academic: radius 0, hard offset shadows, VT323/Source Serif 4/JetBrains Mono, blueprint-blue accent). shadcn primitives retained for behavior, re-themed to Blueprint tokens. | User-selected via `/blueprint-design-system`. See Section 8. |
 
 ---
 
@@ -164,9 +165,33 @@ with `autoretry_for`, `max_retries`, `default_retry_delay`.
 
 Exact page/component tree from the spec. Data exclusively via `lib/api.ts` (axios + JWT
 interceptor). React Query for server state, Zustand for UI state, Recharts for analytics,
-Framer Motion for micro-interactions, shadcn/ui base. No `any` types. Every data view
-handles loading/error/empty/success; every form has loading+disabled states. Fully
-responsive. API base from `NEXT_PUBLIC_API_URL`.
+Framer Motion for micro-interactions. No `any` types. Every data view handles
+loading/error/empty/success; every form has loading+disabled states. Fully responsive.
+API base from `NEXT_PUBLIC_API_URL`.
+
+### Visual design system: **Blueprint** (decided)
+The UI uses the **Blueprint design system** — a technical/academic, print-like aesthetic.
+The non-negotiable rules:
+
+| Rule | Value |
+|------|-------|
+| Border radius | **0** — sharp corners everywhere |
+| Shadows | Hard offset `3px 3px 0 var(--ink)` — never blurred |
+| Heading/label/button font | `VT323` (retro monospace) |
+| Body font | `Source Serif 4` (scholarly serif) |
+| Code/metadata/tags font | `JetBrains Mono` |
+| Accent | Blueprint blue `#3553ff` (`#6b8eff` dark), used sparingly |
+| Light bg | `#fafaf5` (warm off-white, never pure white) |
+| Dark bg | `#0a0d1a` (deep navy, never pure black) |
+
+**Reconciliation with shadcn/ui:** we keep shadcn/Radix primitives for *behavior*
+(dialog, dropdown, popover, tabs) but override their theme tokens to the Blueprint
+palette above and force `--radius: 0`. Tailwind is configured to consume Blueprint CSS
+custom properties (from the design system's `tokens.md`) so the entire app — sidebar,
+cards, kanban, charts, modals — reads as Blueprint. Fonts loaded via `next/font` (VT323,
+Source Serif 4, JetBrains Mono). Light/dark theme via `data-theme` on `<html>` with a
+toggle persisted to `localStorage`. Recharts series colored from the Blueprint accent +
+status tokens. Component patterns follow the design system's `components.md`.
 
 Key surfaces: dashboard (stats + activity feed + reply-rate chart), jobs feed + detail
 (generate CTA), applications kanban + table + detail timeline + email preview modal,
