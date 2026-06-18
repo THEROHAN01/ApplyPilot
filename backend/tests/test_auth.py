@@ -41,3 +41,17 @@ def test_me_returns_user(client: TestClient) -> None:
     assert r.status_code == 200
     assert r.json()["email"] == "a@b.com"
     assert r.json()["plan"] == "free"
+
+
+def test_refresh_returns_new_token_pair(client: TestClient) -> None:
+    refresh_token = _signup(client).json()["refresh_token"]
+    r = client.post("/auth/refresh", json={"refresh_token": refresh_token})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["access_token"] and body["refresh_token"]
+
+
+def test_refresh_rejects_access_token_as_refresh(client: TestClient) -> None:
+    access_token = _signup(client).json()["access_token"]
+    r = client.post("/auth/refresh", json={"refresh_token": access_token})
+    assert r.status_code == 401

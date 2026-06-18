@@ -20,7 +20,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _tokens(user_id: str) -> TokenPair:
-    """Issue an access+refresh token pair for a user id."""
+    """Issue an access+refresh token pair for a user id.
+
+    Args:
+        user_id: The UUID string of the user to issue tokens for.
+
+    Returns:
+        A TokenPair containing a signed JWT access token and a signed
+        JWT refresh token, both with ``sub`` set to *user_id*.
+    """
     return TokenPair(access_token=create_access_token(user_id),
                      refresh_token=create_refresh_token(user_id))
 
@@ -44,7 +52,8 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenPair:
     """Validate credentials and return a token pair. 401 on failure."""
     user = db.query(User).filter(User.email == payload.email).first()
     if user is None or not user.password_hash or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials",
+                            headers={"WWW-Authenticate": "Bearer"})
     return _tokens(str(user.id))
 
 
@@ -57,7 +66,8 @@ def refresh(payload: RefreshRequest) -> TokenPair:
             raise JWTError("not a refresh token")
         return _tokens(str(claims["sub"]))
     except (JWTError, KeyError) as exc:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token") from exc
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token",
+                            headers={"WWW-Authenticate": "Bearer"}) from exc
 
 
 @router.get("/me", response_model=UserOut, summary="Get the current user")
