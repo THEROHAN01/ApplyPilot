@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
+from middleware.rate_limiter import RateLimitMiddleware
 from routers import applications, auth, dashboard, health, jobs, resumes
 
 
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(resumes.router)
