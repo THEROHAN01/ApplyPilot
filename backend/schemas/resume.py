@@ -1,6 +1,7 @@
 """
 Module: schemas/resume.py
 Purpose: Pydantic response schema for resume resources.
+Dependencies: pydantic
 Author: ApplyPilot
 """
 import uuid

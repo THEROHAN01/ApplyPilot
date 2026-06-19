@@ -1,6 +1,7 @@
 """
 Module: routers/resumes.py
 Purpose: Upload, list, and delete user resumes (stored in MinIO).
+Dependencies: fastapi, sqlalchemy, services.storage_service
 Author: ApplyPilot
 """
 import uuid
@@ -68,13 +69,18 @@ def delete_resume(
     resume_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    storage: StorageService = Depends(get_storage),
 ) -> None:
     """Delete a resume owned by the current user. 404 if not found/owned.
+
+    Removes the stored file from MinIO before deleting the database row to
+    avoid orphaned objects in object storage.
 
     Args:
         resume_id: UUID of the resume to delete.
         db: SQLAlchemy database session.
         current_user: Authenticated user from JWT.
+        storage: Storage service for removing the file from MinIO.
 
     Raises:
         HTTPException: 404 if the resume does not exist or belongs to another user.
@@ -84,5 +90,9 @@ def delete_resume(
     ).first()
     if resume is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume not found")
+    # storage_url format: {scheme}://{host}/{bucket}/{key...}
+    # Index: 0=scheme, 1=empty, 2=host, 3=bucket, 4+=key parts
+    key = "/".join(resume.storage_url.split("/")[4:])
+    storage.delete(key)
     db.delete(resume)
     db.commit()
