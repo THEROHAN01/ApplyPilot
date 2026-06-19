@@ -108,9 +108,9 @@ the ledger, fix in ONE batch, then use **superpowers:finishing-a-development-bra
 | A2 DB engine/session/deps | ✅ done | 9a848be..8e633a6 |
 | A3 ORM models (10 tables) | ✅ done | 8e633a6..278f98c |
 | A4 Alembic migration (pgvector/indexes/RLS) | ✅ done | 278f98c..1cbff7f |
-| **A5 JWT security + auth schemas + current-user dep** | ⏭️ **NEXT** | — |
-| A6 Auth router | pending | — |
-| A7 Storage service + resume upload | pending | — |
+| A5 JWT security + auth schemas + current-user dep | ✅ done | fba7f0a..3b1dba7 |
+| A6 Auth router | ✅ done | 3b1dba7..a7d836c |
+| **A7 Storage service + resume upload** | ⏭️ **NEXT** | — |
 | A8 Jobs router | pending | — |
 | A9 Applications router | pending | — |
 | A10 Dashboard stats | pending | — |
@@ -135,6 +135,14 @@ the ledger, fix in ONE batch, then use **superpowers:finishing-a-development-bra
   `-> Generator[None, None, None]` (mypy --strict).
 - **A4 Minor 2:** add inline comment in `001_initial.py` above `jobs` ENABLE RLS noting the
   Supabase-swap path needs a permissive SELECT policy on the global `jobs` table.
+- **A6 security (HIGH):** brute-force/no rate limit on `/login`+`/signup` → COVERED by Task A11
+  (Redis sliding-window applies app-wide); verify A11 actually protects the auth routes.
+- **A6 security (MED):** signup `409` is user-enumeration — DELIBERATE per spec/frontend UX;
+  document in README hardening notes.
+- **A6 security (MED):** login timing side-channel → add a constant-time dummy bcrypt verify
+  when user is absent / has no password_hash.
+- **A6 security (MED):** refresh tokens not rotated/revocable → persist jti + per-user
+  revocation epoch (Redis) in a hardening pass; verify subject still exists on refresh.
 
 ## Notes / decisions made mid-flight
 
