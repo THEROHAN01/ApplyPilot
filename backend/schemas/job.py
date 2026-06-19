@@ -1,4 +1,9 @@
-"""Job request/response schemas."""
+"""
+Module: schemas/job.py
+Purpose: Pydantic schemas for job create/read — JobCreate (POST body), JobOut
+         (API response), and JobList (paginated list envelope).
+Author: ApplyPilot
+"""
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
