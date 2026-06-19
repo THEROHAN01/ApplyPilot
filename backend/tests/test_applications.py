@@ -48,6 +48,22 @@ def test_other_users_application_404(client: TestClient) -> None:
     assert client.get(f"/applications/{aid}", headers=h2).status_code == 404
 
 
+def test_patch_other_users_application_404(client: TestClient) -> None:
+    h1 = _auth(client, "owner1@b.com")
+    jid = _job(client, h1)
+    aid = client.post("/applications", headers=h1, json={"job_id": jid}).json()["id"]
+    h2 = _auth(client, "intruder1@b.com")
+    assert client.patch(f"/applications/{aid}", headers=h2, json={"status": "sent"}).status_code == 404
+
+
+def test_delete_other_users_application_404(client: TestClient) -> None:
+    h1 = _auth(client, "owner2@b.com")
+    jid = _job(client, h1)
+    aid = client.post("/applications", headers=h1, json={"job_id": jid}).json()["id"]
+    h2 = _auth(client, "intruder2@b.com")
+    assert client.delete(f"/applications/{aid}", headers=h2).status_code == 404
+
+
 def test_list_filter_by_status(client: TestClient) -> None:
     h = _auth(client)
     jid = _job(client, h)
