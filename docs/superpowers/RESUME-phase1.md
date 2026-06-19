@@ -110,13 +110,13 @@ the ledger, fix in ONE batch, then use **superpowers:finishing-a-development-bra
 | A4 Alembic migration (pgvector/indexes/RLS) | ✅ done | 278f98c..1cbff7f |
 | A5 JWT security + auth schemas + current-user dep | ✅ done | fba7f0a..3b1dba7 |
 | A6 Auth router | ✅ done | 3b1dba7..a7d836c |
-| **A7 Storage service + resume upload** | ⏭️ **NEXT** | — |
-| A8 Jobs router | pending | — |
-| A9 Applications router | pending | — |
-| A10 Dashboard stats | pending | — |
-| A11 Rate limiter | pending | — |
-| A12 Backend Dockerfile + container test | pending | — |
-| B1 Next.js scaffold + Blueprint | pending | — |
+| A7 Storage service + resume upload | ✅ done | 823cdc3..02739b8 |
+| A8 Jobs router | ✅ done | 02739b8..94e8873 |
+| A9 Applications router | ✅ done | 94e8873..82433b5 |
+| A10 Dashboard stats | ✅ done | 82433b5..efcd067 |
+| A11 Rate limiter | ✅ done | efcd067..05d6cde |
+| A12 Backend Dockerfile + container test | ✅ done | 05d6cde..5c06d08 |
+| **B1 Next.js scaffold + Blueprint** | ⏭️ **NEXT** | — |
 | B2 Types + api client + stores | pending | — |
 | B3 Providers + UI primitives + auth pages | pending | — |
 | B4 Dashboard shell | pending | — |
