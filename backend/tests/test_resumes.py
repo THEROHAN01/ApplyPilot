@@ -47,6 +47,13 @@ def test_delete_resume_204(client: TestClient) -> None:
     assert listed == []
 
 
+def test_upload_disallowed_content_type_422(client: TestClient) -> None:
+    headers = _auth(client)
+    files = {"file": ("evil.html", io.BytesIO(b"<script>alert(1)</script>"), "text/html")}
+    r = client.post("/resumes", headers=headers, files=files)
+    assert r.status_code == 422
+
+
 def test_delete_resume_404_other_user(client: TestClient) -> None:
     # Upload as user A
     headers_a = _auth(client)

@@ -4,10 +4,17 @@ Purpose: Upload, list, and delete user resumes (stored in MinIO).
 Dependencies: fastapi, sqlalchemy, services.storage_service
 Author: ApplyPilot
 """
+import re
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
+
+ALLOWED_RESUME_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 
 from deps import get_current_user, get_db
 from models.resume import Resume
@@ -37,10 +44,15 @@ def upload_resume(
     Returns:
         The newly created Resume record.
     """
-    key = f"{current_user.id}/{uuid.uuid4()}-{file.filename or 'resume'}"
+    if file.content_type not in ALLOWED_RESUME_TYPES:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "Only PDF and Word documents are accepted")
+    safe_name = re.sub(r"[^\w.\-]", "_", file.filename or "resume")
+    key = f"{current_user.id}/{uuid.uuid4()}-{safe_name}"
     data = file.file.read()
     url = storage.upload(key, data, file.content_type or "application/octet-stream")
-    resume = Resume(user_id=current_user.id, filename=file.filename or "resume", storage_url=url, storage_key=key)
+    resume = Resume(user_id=current_user.id, filename=file.filename or "resume",
+                    storage_url=url, storage_key=key)
     db.add(resume)
     db.commit()
     db.refresh(resume)
