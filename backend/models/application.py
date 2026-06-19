@@ -49,4 +49,4 @@ class Application(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user: Mapped["User"] = relationship(back_populates="applications")
-    job: Mapped["Job"] = relationship()
+    job: Mapped["Job"] = relationship(lazy="selectin")

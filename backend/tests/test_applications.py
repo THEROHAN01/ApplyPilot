@@ -4,7 +4,6 @@ Purpose: Tests for the /applications CRUD router including status transitions,
          ownership enforcement, and status filtering.
 Author: ApplyPilot
 """
-import uuid
 from fastapi.testclient import TestClient
 
 
