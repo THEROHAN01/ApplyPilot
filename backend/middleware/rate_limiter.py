@@ -80,6 +80,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             The response from the next handler, or a 429 JSONResponse when the
             rate limit is exceeded.
         """
+        if request.method == "OPTIONS":
+            return await call_next(request)
         if request.url.path in EXEMPT:
             return await call_next(request)
 

@@ -14,6 +14,7 @@ from routers import applications, auth, dashboard, health, jobs, resumes
 def create_app() -> FastAPI:
     """Construct and configure the FastAPI application."""
     app = FastAPI(title="ApplyPilot API", version="0.1.0")
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -21,7 +22,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RateLimitMiddleware)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(resumes.router)
