@@ -21,7 +21,7 @@ class _FakeStorage:
 
     def upload(self, key: str, data: bytes, content_type: str) -> str:
         """Return a deterministic test URL for the given key."""
-        return f"http://test-storage/{key}"
+        return f"http://test-storage/test-bucket/{key}"
 
     def delete(self, key: str) -> None:
         """No-op: nothing to delete in tests."""

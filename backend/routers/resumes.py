@@ -37,10 +37,10 @@ def upload_resume(
     Returns:
         The newly created Resume record.
     """
-    key = f"{current_user.id}/{uuid.uuid4()}-{file.filename}"
+    key = f"{current_user.id}/{uuid.uuid4()}-{file.filename or 'resume'}"
     data = file.file.read()
     url = storage.upload(key, data, file.content_type or "application/octet-stream")
-    resume = Resume(user_id=current_user.id, filename=file.filename or "resume", storage_url=url)
+    resume = Resume(user_id=current_user.id, filename=file.filename or "resume", storage_url=url, storage_key=key)
     db.add(resume)
     db.commit()
     db.refresh(resume)
@@ -90,9 +90,7 @@ def delete_resume(
     ).first()
     if resume is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Resume not found")
-    # storage_url format: {scheme}://{host}/{bucket}/{key...}
-    # Index: 0=scheme, 1=empty, 2=host, 3=bucket, 4+=key parts
-    key = "/".join(resume.storage_url.split("/")[4:])
-    storage.delete(key)
+    if resume.storage_key:
+        storage.delete(resume.storage_key)
     db.delete(resume)
     db.commit()
