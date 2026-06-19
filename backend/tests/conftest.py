@@ -8,7 +8,24 @@ from config import settings
 from database import Base
 from deps import get_db
 from main import create_app
+from services.storage_service import get_storage
 import models  # noqa: F401
+
+
+class _FakeStorage:
+    """In-memory fake storage that never hits MinIO."""
+
+    def ensure_bucket(self) -> None:
+        """No-op: bucket always 'exists' in tests."""
+        ...
+
+    def upload(self, key: str, data: bytes, content_type: str) -> str:
+        """Return a deterministic test URL for the given key."""
+        return f"http://test-storage/{key}"
+
+    def delete(self, key: str) -> None:
+        """No-op: nothing to delete in tests."""
+        ...
 
 engine = create_engine(settings.database_url, pool_pre_ping=True)
 TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -40,4 +57,5 @@ def client(db_session) -> TestClient:
     """Return a TestClient with get_db overridden to use the test session."""
     app = create_app()
     app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_storage] = lambda: _FakeStorage()
     return TestClient(app)
