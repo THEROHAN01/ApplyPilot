@@ -1,6 +1,6 @@
 FROM node:20-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json* npm-shrinkwrap.json* ./
 RUN npm install
 
 FROM node:20-slim AS builder
