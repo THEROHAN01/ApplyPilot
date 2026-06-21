@@ -13,7 +13,7 @@ import { useResumes, useUploadResume } from "@/hooks/useResumes";
 
 export default function SettingsPage() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { data: resumes, isLoading } = useResumes();
+  const { data: resumes, isLoading, isError: resumesError } = useResumes();
   const upload = useUploadResume();
   return (
     <div className="max-w-2xl">
@@ -25,9 +25,10 @@ export default function SettingsPage() {
         <Button variant="primary" disabled={upload.isPending} onClick={() => inputRef.current?.click()}>
           {upload.isPending ? "Uploading…" : "Upload resume"}
         </Button>
-        {upload.isError && <p className="font-mono text-[0.8rem] text-[var(--warn)] mt-3">Upload failed.</p>}
+        {upload.isError && <p className="font-mono text-[0.8rem] text-warn mt-3">Upload failed.</p>}
         <div className="mt-6 space-y-2">
           {isLoading && <p className="font-mono text-ink-soft">Loading…</p>}
+          {resumesError && <p className="font-mono text-[0.8rem] text-warn">Failed to load resumes.</p>}
           {resumes?.map((r) => (
             <p key={r.id} className="font-mono text-[0.8rem]">{r.filename}
               <span className="text-ink-mute"> · {new Date(r.created_at).toLocaleDateString()}</span></p>
