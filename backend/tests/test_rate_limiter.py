@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 import middleware.rate_limiter as rl
 from main import create_app
+from security.jwt import create_access_token
 
 
 def test_rate_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -39,3 +40,51 @@ def test_rate_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
     codes = [client.get("/health").status_code for _ in range(5)]
     assert 429 in codes, f"Expected a 429 but got: {codes}"
     assert codes.count(200) == 3, f"Expected exactly 3 x 200 but got: {codes}"
+
+
+def test_different_users_get_separate_rate_limit_buckets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify that two distinct JWT subjects are rate-limited independently.
+
+    Sets LIMIT=2 so that two requests per identity exhaust the bucket.
+    Sends two requests as user-a (consuming that user's entire budget), then
+    confirms that user-b's first request still succeeds — proving the per-user
+    bucket isolation introduced by the ``sub``-based identity key.
+
+    Args:
+        monkeypatch: pytest monkeypatch fixture.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If user-b is throttled by user-a's request history,
+                        or if user-a is not throttled after exhausting its own bucket.
+    """
+    fake = fakeredis.FakeRedis()
+    monkeypatch.setattr(rl, "_redis", lambda: fake)
+    monkeypatch.setattr(rl, "LIMIT", 2)
+    monkeypatch.setattr(rl, "EXEMPT", set())
+
+    tok_a = create_access_token("user-a")
+    tok_b = create_access_token("user-b")
+    headers_a = {"Authorization": f"Bearer {tok_a}"}
+    headers_b = {"Authorization": f"Bearer {tok_b}"}
+
+    app = create_app()
+    client = TestClient(app)
+
+    # Exhaust user-a's bucket (2 requests at LIMIT=2 → 3rd should be 429)
+    r1 = client.get("/health", headers=headers_a)
+    r2 = client.get("/health", headers=headers_a)
+    r3 = client.get("/health", headers=headers_a)
+    assert r3.status_code == 429, (
+        f"Expected user-a to be throttled on 3rd request (LIMIT=2), got {r3.status_code}"
+    )
+
+    # user-b must NOT be throttled by user-a's usage
+    r_b = client.get("/health", headers=headers_b)
+    assert r_b.status_code == 200, (
+        f"Expected user-b first request to succeed (separate bucket), got {r_b.status_code}"
+    )

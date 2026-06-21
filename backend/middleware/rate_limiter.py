@@ -10,12 +10,14 @@ Author: ApplyPilot
 import time
 
 import redis
+from jose import JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from config import settings
 from deps import get_redis
+from security.jwt import decode_token
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -35,21 +37,29 @@ def _redis() -> redis.Redis:
 
 
 def _identity(request: Request) -> str:
-    """Derive a rate-limit key from auth token subject or client IP.
+    """Derive a rate-limit key from the JWT ``sub`` claim or client IP.
 
-    Uses the first 24 characters of the Bearer token (not the full token,
-    to keep Redis keys short) or falls back to the client IP address.
+    Decodes the Bearer token and keys on the ``sub`` claim so that each
+    authenticated user gets a separate rate-limit bucket. Falls back to
+    the IP-based identity if the token is absent or cannot be decoded
+    (fail-safe: a decode failure never blocks the request here).
 
     Args:
         request: The incoming Starlette request.
 
     Returns:
-        A string key prefix identifying this client, e.g. ``tok:eyJhbG...``
-        or ``ip:127.0.0.1``.
+        A string key identifying this client, e.g. ``user:<uuid>`` for an
+        authenticated request or ``ip:127.0.0.1`` for an unauthenticated one.
     """
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer "):
-        return f"tok:{auth[7:][:24]}"
+        try:
+            claims = decode_token(auth[7:])
+            sub = claims.get("sub")
+            if sub:
+                return f"user:{sub}"
+        except JWTError:
+            pass  # fall through to IP-based identity
     return f"ip:{request.client.host if request.client else 'unknown'}"
 
 

@@ -7,6 +7,7 @@ Author: ApplyPilot
 import io
 
 from minio import Minio
+from minio.error import S3Error
 
 from config import settings
 from utils.logger import get_logger
@@ -48,12 +49,26 @@ class StorageService:
         return f"{scheme}://{settings.s3_endpoint}/{self._bucket}/{key}"
 
     def delete(self, key: str) -> None:
-        """Delete the object at key (idempotent).
+        """Delete the object at key (idempotent — silent on missing key).
+
+        Swallows S3 NoSuchKey errors so that deleting an already-deleted or
+        never-created object is safe to call without pre-checking existence.
+        All other S3 errors are re-raised.
 
         Args:
             key: Object key path within the bucket.
+
+        Raises:
+            S3Error: If the storage backend returns any error other than
+                ``NoSuchKey``.
         """
-        self._client.remove_object(self._bucket, key)
+        try:
+            self._client.remove_object(self._bucket, key)
+        except S3Error as exc:
+            if exc.code == "NoSuchKey":
+                logger.debug("delete(%s): object not found, skipping (idempotent)", key)
+                return
+            raise
 
 
 def get_storage() -> StorageService:

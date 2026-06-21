@@ -5,7 +5,6 @@ Purpose: CRUD and status transitions for a user's applications.
          returns 404 rather than 403 to avoid enumeration.
 Author: ApplyPilot
 """
-import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -16,8 +15,9 @@ from models.application import Application, ApplicationStatus
 from models.job import Job
 from models.user import User
 from schemas.application import ApplicationCreate, ApplicationOut, ApplicationUpdate
+from utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 

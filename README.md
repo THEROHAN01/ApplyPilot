@@ -79,9 +79,16 @@ docker compose up --build
 
 ## Environment Variables
 
-All variables live in `.env` at the repo root (copy from `.env.example`).
-The backend also reads `backend/.env.example`; the frontend reads `frontend/.env.local.example`
-— both are superseded by the root `.env` under Docker Compose.
+Under Docker Compose, the backend container reads `backend/.env.example` via the
+`env_file:` directive in `docker-compose.yml`; the frontend receives `NEXT_PUBLIC_API_URL`
+as an inline build argument. There is no root-level `.env` read by Compose.
+
+For **local (non-Compose) development**, copy the example and export variables manually:
+
+```bash
+cp backend/.env.example backend/.env
+# then source or export the variables before running uvicorn / pytest
+```
 
 | Variable | Default | Description |
 |----------|---------|-------------|
