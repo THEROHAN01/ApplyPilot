@@ -116,7 +116,26 @@ the ledger, fix in ONE batch, then use **superpowers:finishing-a-development-bra
 | A10 Dashboard stats | ✅ done | 82433b5..efcd067 |
 | A11 Rate limiter | ✅ done | efcd067..05d6cde |
 | A12 Backend Dockerfile + container test | ✅ done | 05d6cde..5c06d08 |
-| **B1 Next.js scaffold + Blueprint** | ⏭️ **NEXT** | — |
+| B1 Next.js scaffold + Blueprint | ✅ done | 1353354..b18584e |
+| B2 Types + api client + stores | ✅ done | f559761..baa1213 |
+| B3 Providers + UI primitives + auth pages | ✅ done | baa1213..0cfc405 |
+| B4 Dashboard shell | ✅ done | cac48f4 |
+| B5 Jobs feed + detail | ✅ done | cac48f4..95839eb |
+| B6 Applications + dashboard + settings | ✅ done | 12e865c..31ab2c1 |
+| B7 Frontend Dockerfile + full-stack smoke | ✅ done | b52ea9c, 4884c21 (test-DB isolation fix) |
+| B8 README + verification gates | ✅ done | f6f2bad |
+| **Final whole-branch review + fixes** | ✅ done | 45a6110, 14b68c9, 9304404 |
+
+## STATUS: PHASE 1 COMPLETE ✅
+All 20 tasks + final review done. 51 backend tests pass (on `applypilot_test`). Full stack boots with
+`docker compose up` and a real e2e flow works (signup→job→application→status→dashboard). Branch
+`phase1-foundation` is ready to merge to `main` (not yet merged — awaiting user decision).
+
+**Deferred hardening backlog (none block Phase 1):** auth timing side-channel (constant-time dummy verify),
+refresh-token rotation/revocation, stricter per-account brute-force limits, SecretStr for creds, Job dedup
+NULL posted_at (Phase 3), entrypoint `--reload` (dev only). All recorded in `.git/sdd/progress.md`.
+
+**Next phase:** Phase 2 (AI generation) — see design doc Section 9. Start a new brainstorm/plan cycle.
 | B2 Types + api client + stores | pending | — |
 | B3 Providers + UI primitives + auth pages | pending | — |
 | B4 Dashboard shell | pending | — |
