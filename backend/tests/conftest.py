@@ -27,7 +27,22 @@ class _FakeStorage:
         """No-op: nothing to delete in tests."""
         ...
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+from sqlalchemy.engine import make_url  # noqa: E402
+
+_base_url = make_url(settings.database_url)
+_test_url = _base_url.set(database=f"{_base_url.database}_test")
+
+# Ensure the dedicated test database exists (connect to the maintenance db).
+_admin_engine = create_engine(_base_url.set(database="postgres"), isolation_level="AUTOCOMMIT")
+with _admin_engine.connect() as _conn:
+    _exists = _conn.execute(
+        text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": _test_url.database}
+    ).scalar()
+    if not _exists:
+        _conn.execute(text(f'CREATE DATABASE "{_test_url.database}"'))
+_admin_engine.dispose()
+
+engine = create_engine(_test_url, pool_pre_ping=True)
 TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
