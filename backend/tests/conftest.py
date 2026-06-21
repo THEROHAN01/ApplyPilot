@@ -27,6 +27,7 @@ class _FakeStorage:
         """No-op: nothing to delete in tests."""
         ...
 
+
 from sqlalchemy.engine import make_url  # noqa: E402
 
 _base_url = make_url(settings.database_url)
@@ -74,3 +75,90 @@ def client(db_session) -> TestClient:
     app.dependency_overrides[get_db] = lambda: db_session
     app.dependency_overrides[get_storage] = lambda: _FakeStorage()
     return TestClient(app)
+
+
+# --------------------------------------------------------------------------- #
+# Convenience fixtures and factories used across the Phase 1 test suite.
+# --------------------------------------------------------------------------- #
+from collections.abc import Callable  # noqa: E402
+
+from faker import Faker  # noqa: E402
+
+_faker = Faker()
+
+
+@pytest.fixture
+def faker() -> Faker:
+    """Return a Faker instance for generating test data."""
+    return _faker
+
+
+@pytest.fixture
+def make_user(client: TestClient) -> Callable[..., dict[str, str]]:
+    """Return a factory that signs up a user and yields Authorization headers.
+
+    The factory generates a unique email per call (unless one is supplied) so
+    tests can create several isolated users without email collisions.
+
+    Returns:
+        A callable ``make_user(email=None, password="Password123!")`` that
+        returns a dict suitable for use as request headers.
+    """
+
+    def _make(email: str | None = None, password: str = "Password123!") -> dict[str, str]:
+        email = email or _faker.unique.email()
+        resp = client.post(
+            "/auth/signup", json={"email": email, "password": password, "name": "Test User"}
+        )
+        assert resp.status_code == 201, resp.text
+        token = resp.json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
+
+    return _make
+
+
+@pytest.fixture
+def auth_headers(make_user: Callable[..., dict[str, str]]) -> dict[str, str]:
+    """Pre-created user with valid JWT Authorization headers."""
+    return make_user()
+
+
+@pytest.fixture
+def sample_job(client: TestClient, auth_headers: dict[str, str]) -> dict:
+    """Seed and return a single Job row (as the API response dict)."""
+    resp = client.post(
+        "/jobs",
+        headers=auth_headers,
+        json={
+            "source": "greenhouse",
+            "company": "Stripe",
+            "role": "Software Engineer",
+            "jd_url": "https://stripe.com/jobs/1",
+            "location": "Remote",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+@pytest.fixture
+def sample_application(
+    client: TestClient, auth_headers: dict[str, str], sample_job: dict
+) -> dict:
+    """Seed and return a single Application row owned by the auth_headers user."""
+    resp = client.post(
+        "/applications", headers=auth_headers, json={"job_id": sample_job["id"]}
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+@pytest.fixture
+def sample_resume(client: TestClient, auth_headers: dict[str, str]) -> dict:
+    """Seed and return a single Resume row (storage is faked, never hits MinIO)."""
+    import io
+
+    files = {"file": ("resume.pdf", io.BytesIO(b"%PDF-1.4 fake resume"), "application/pdf")}
+    resp = client.post("/resumes", headers=auth_headers, files=files)
+    assert resp.status_code == 201, resp.text
+    return resp.json()

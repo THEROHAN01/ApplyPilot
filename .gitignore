@@ -1,0 +1,6 @@
+# Python virtual environments (project-root venv used for local test runs)
+.venv/
+venv/
+
+# OS / editor
+.DS_Store

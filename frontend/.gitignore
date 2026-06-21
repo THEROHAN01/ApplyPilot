@@ -2,3 +2,7 @@ node_modules
 .next
 .env.local
 tsconfig.tsbuildinfo
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/blob-report/

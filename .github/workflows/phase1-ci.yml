@@ -1,0 +1,114 @@
+name: Phase 1 CI
+
+on:
+  push:
+    branches: [phase1-foundation, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # pgvector image so the `vector` extension the tests create is available.
+        # POSTGRES_DB is the BASE database; the unit-test conftest derives a
+        # separate "<base>_test" database from it, while the API-level E2E tests
+        # use this base database directly.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: applypilot
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/applypilot
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: test-secret-key-not-for-prod
+      S3_ENDPOINT: localhost:9000
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: cd backend && pip install -r requirements.txt -q
+      - name: Validate migrations apply cleanly
+        run: cd backend && alembic upgrade head
+      - name: Run tests with coverage (unit + API-level E2E)
+        run: cd backend && pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing --cov-fail-under=70
+      - uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: backend/coverage.xml
+          fail_ci_if_error: false
+
+  frontend-check:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx tsc --noEmit
+      - run: cd frontend && npx eslint . --ext .ts,.tsx --max-warnings=0
+      - run: cd frontend && npx next build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-check]
+    env:
+      E2E_TEST_EMAIL: e2e@applypilot.dev
+      E2E_TEST_PASSWORD: E2eTest1234!
+      E2E_API_URL: http://localhost:8000
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Resolve docker compose command
+        id: compose
+        run: |
+          if docker compose version >/dev/null 2>&1; then echo "dc=docker compose" >> "$GITHUB_OUTPUT";
+          else echo "dc=docker-compose" >> "$GITHUB_OUTPUT"; fi
+      - name: Start full stack
+        run: ${{ steps.compose.outputs.dc }} up -d --build
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8000/health && break
+            sleep 2
+          done
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:3000 >/dev/null && break
+            sleep 2
+          done
+      - run: cd frontend && npm ci
+      - run: cd frontend && npx playwright install --with-deps chromium
+      - name: Run Playwright E2E (reuses docker frontend on :3000)
+        run: cd frontend && npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+      - name: Tear down
+        if: always()
+        run: ${{ steps.compose.outputs.dc }} down -v

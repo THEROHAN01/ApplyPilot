@@ -10,17 +10,17 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-ALLOWED_RESUME_TYPES = {
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-}
-
 from deps import get_current_user, get_db
 from models.resume import Resume
 from models.user import User
 from schemas.resume import ResumeOut
 from services.storage_service import StorageService, get_storage
+
+ALLOWED_RESUME_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 

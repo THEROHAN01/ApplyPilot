@@ -68,3 +68,48 @@ def test_delete_resume_404_other_user(client: TestClient) -> None:
     }
     r = client.delete(f"/resumes/{resume_id}", headers=headers_b)
     assert r.status_code == 404
+
+
+def test_upload_docx_accepted(client: TestClient) -> None:
+    """A .docx (Office Open XML) upload is accepted (201)."""
+    headers = _auth(client)
+    docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    files = {"file": ("cv.docx", io.BytesIO(b"PK\x03\x04 fake docx"), docx)}
+    r = client.post("/resumes", headers=headers, files=files)
+    assert r.status_code == 201
+
+
+def test_upload_exe_rejected_422(client: TestClient) -> None:
+    """An executable upload is rejected by content-type allow-list (422)."""
+    headers = _auth(client)
+    files = {"file": ("malware.exe", io.BytesIO(b"MZ\x90\x00"), "application/x-msdownload")}
+    assert client.post("/resumes", headers=headers, files=files).status_code == 422
+
+
+def test_upload_jpg_rejected_422(client: TestClient) -> None:
+    """An image upload is rejected (only PDF/DOC/DOCX allowed)."""
+    headers = _auth(client)
+    files = {"file": ("photo.jpg", io.BytesIO(b"\xff\xd8\xff\xe0"), "image/jpeg")}
+    assert client.post("/resumes", headers=headers, files=files).status_code == 422
+
+
+def test_resumes_list_isolated_between_users(client: TestClient) -> None:
+    """User B never sees user A's resumes in their own list."""
+    headers_a = _auth(client)
+    files = {"file": ("a.pdf", io.BytesIO(b"%PDF"), "application/pdf")}
+    client.post("/resumes", headers=headers_a, files=files)
+    token_b = client.post(
+        "/auth/signup", json={"email": "iso@b.com", "password": "password123"}
+    ).json()["access_token"]
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+    assert client.get("/resumes", headers=headers_b).json() == []
+
+
+def test_resume_filename_with_path_traversal_is_sanitised(client: TestClient) -> None:
+    """A filename containing path separators is sanitised, not stored raw."""
+    headers = _auth(client)
+    files = {"file": ("../../etc/passwd.pdf", io.BytesIO(b"%PDF"), "application/pdf")}
+    r = client.post("/resumes", headers=headers, files=files)
+    assert r.status_code == 201
+    # storage_url is keyed by a sanitised name (no traversal sequences survive).
+    assert "../" not in r.json()["storage_url"]

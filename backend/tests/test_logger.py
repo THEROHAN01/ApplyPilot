@@ -3,8 +3,6 @@ import json
 import logging
 from io import StringIO
 
-import pytest
-
 from utils.logger import JsonFormatter, _scrub_message
 
 

@@ -76,8 +76,8 @@ def test_different_users_get_separate_rate_limit_buckets(
     client = TestClient(app)
 
     # Exhaust user-a's bucket (2 requests at LIMIT=2 → 3rd should be 429)
-    r1 = client.get("/health", headers=headers_a)
-    r2 = client.get("/health", headers=headers_a)
+    client.get("/health", headers=headers_a)
+    client.get("/health", headers=headers_a)
     r3 = client.get("/health", headers=headers_a)
     assert r3.status_code == 429, (
         f"Expected user-a to be throttled on 3rd request (LIMIT=2), got {r3.status_code}"
