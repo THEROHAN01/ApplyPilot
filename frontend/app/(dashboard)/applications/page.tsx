@@ -25,7 +25,7 @@ export default function ApplicationsPage() {
         </div>
       </div>
       {isLoading && <p className="font-mono text-ink-soft">Loading…</p>}
-      {isError && <p className="font-mono text-[var(--warn)]">Failed to load applications.</p>}
+      {isError && <p className="font-mono text-warn">Failed to load applications.</p>}
       {data && data.length === 0 && <p className="font-mono text-ink-mute">No applications yet — create one from a job.</p>}
       {data && data.length > 0 && (view === "kanban" ? <ApplicationKanban apps={data} /> : <ApplicationTable apps={data} />)}
     </div>

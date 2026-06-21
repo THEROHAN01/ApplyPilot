@@ -16,7 +16,7 @@ export default function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: app, isLoading, isError } = useApplication(id);
   if (isLoading) return <p className="font-mono text-ink-soft">Loading…</p>;
-  if (isError || !app) return <p className="font-mono text-[var(--warn)]">Application not found.</p>;
+  if (isError || !app) return <p className="font-mono text-warn">Application not found.</p>;
   return (
     <div className="max-w-2xl">
       <div className="flex items-center gap-3 mb-6">

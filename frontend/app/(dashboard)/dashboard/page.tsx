@@ -15,7 +15,7 @@ import { useDashboard } from "@/hooks/useDashboard";
 export default function DashboardPage() {
   const { data, isLoading, isError } = useDashboard();
   if (isLoading) return <p className="font-mono text-ink-soft">Loading…</p>;
-  if (isError || !data) return <p className="font-mono text-[var(--warn)]">Failed to load dashboard.</p>;
+  if (isError || !data) return <p className="font-mono text-warn">Failed to load dashboard.</p>;
   return (
     <div>
       <h1 className="text-3xl mb-6">Dashboard</h1>
