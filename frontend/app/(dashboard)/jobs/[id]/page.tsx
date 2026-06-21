@@ -30,9 +30,12 @@ export default function JobDetailPage() {
         {job.jd_url && <a href={job.jd_url} className="block mt-4 text-blueprint font-mono text-[0.8rem]">View posting →</a>}
       </Card>
       <Button variant="primary" className="mt-6" disabled={create.isPending}
-        onClick={async () => { const app = await create.mutateAsync(job.id); router.push(`/applications/${app.id}`); }}>
+        onClick={async () => { try { const app = await create.mutateAsync(job.id); router.push(`/applications/${app.id}`); } catch { /* React Query sets create.isError */ } }}>
         {create.isPending ? "Creating…" : "Create application"}
       </Button>
+      {create.isError && (
+        <p className="font-mono text-sm text-warn mt-2">Failed to create application. Please try again.</p>
+      )}
     </div>
   );
 }

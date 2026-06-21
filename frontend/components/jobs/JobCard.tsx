@@ -20,7 +20,7 @@ export function JobCard({ job }: { job: Job }) {
             <h3 className="text-xl">{job.role}</h3>
             <p className="font-mono text-[0.8rem] text-ink-soft">{job.company}</p>
           </div>
-          {job.match_score !== null && (
+          {job.match_score != null && (
             <Badge className="border-blueprint text-blueprint">{Math.round(job.match_score * 100)}%</Badge>
           )}
         </div>
