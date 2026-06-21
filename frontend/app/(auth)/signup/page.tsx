@@ -22,7 +22,7 @@ export default function SignupPage() {
       <form onSubmit={onSubmit} className="w-full max-w-sm border border-ink bg-surface p-8 shadow-hard space-y-5">
         <h1 className="text-4xl">ApplyPilot</h1>
         <p className="label">Create account</p>
-        {error && <p className="font-mono text-[0.8rem] text-[var(--warn)]">{error}</p>}
+        {error && <p className="font-mono text-[0.8rem] text-warn">{error}</p>}
         <Input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} disabled={loading} />
         <Input type="email" placeholder="you@example.com" value={email}
           onChange={(e) => setEmail(e.target.value)} required disabled={loading} />

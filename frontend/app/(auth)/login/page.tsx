@@ -23,7 +23,7 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="w-full max-w-sm border border-ink bg-surface p-8 shadow-hard space-y-5">
         <h1 className="text-4xl">ApplyPilot</h1>
         <p className="label">Sign in</p>
-        {error && <p className="font-mono text-[0.8rem] text-[var(--warn)]">{error}</p>}
+        {error && <p className="font-mono text-[0.8rem] text-warn">{error}</p>}
         <Input type="email" placeholder="you@example.com" value={email}
           onChange={(e) => setEmail(e.target.value)} required disabled={loading} />
         <Input type="password" placeholder="Password" value={password}
