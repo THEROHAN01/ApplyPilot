@@ -42,6 +42,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on:
+      backend: { condition: service_healthy }
 volumes:
   pgdata:
   miniodata:
