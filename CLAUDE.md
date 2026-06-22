@@ -1,324 +1,251 @@
-# CLAUDE.md — Project directives. Read this fully before writing any code.
-# These rules apply for the entire session, every session, without exception.
+# ApplyPilot — Claude Code Project Constitution
 
+> This file is read at the start of every session. It is the single source of
+> truth for how this project is built and what already exists. Read it fully
+> before writing any code.
 
+## What this project is
+ApplyPilot is an autonomous AI job-application SaaS for students and new grads.
+It scrapes jobs, finds recruiter contacts, generates personalized outreach using
+Sarvam AI, auto-fills ATS forms, tracks all touchpoints in a CRM dashboard,
+and learns from reply rates.
 
-## CLAUDE CODE EXECUTION DIRECTIVES
-
-You are running inside Claude Code with full tool access. These directives govern HOW you build — not just what you build. Follow them unconditionally throughout the entire session.
-
----
-
-### TOOL USAGE MANDATES
-
-**Bash tool — use continuously, not occasionally:**
-- After writing EVERY file, immediately run it through a linter/type-checker in bash
-- After writing EVERY Python file: `cd backend && python -m py_compile <file>.py && echo "✓ syntax ok"`
-- After writing EVERY TypeScript file: `cd frontend && npx tsc --noEmit --skipLibCheck 2>&1 | head -40`
-- After writing EVERY router/endpoint: spin up the FastAPI server in bash, hit the endpoint with curl, confirm 200
-- After writing EVERY Celery task: import it in a Python REPL and confirm no import errors
-- After ALL files are written: run the full test suite in bash, fix every failure before finishing
-- Never assume code works. Prove it in bash.
-
-**File reading — read before every edit:**
-- Before modifying any existing file, use the Read tool to load its current contents
-- Never edit from memory — always read first, edit second
-- After every str_replace, read the file again to confirm the change applied correctly
-
-**Grep/search — use to enforce consistency:**
-- After writing all backend files: `grep -rn "TODO\|FIXME\|placeholder\|pass$\|NotImplemented\|raise Exception" backend/` — fix every hit
-- After writing all frontend files: `grep -rn "TODO\|any\b\|@ts-ignore\|@ts-nocheck" frontend/src/` — fix every hit
-- Run `grep -rn "hardcoded\|your_key\|sk-\|password123" .` — crash if any secrets found in code
-- Before final handoff: `grep -rn "\.\.\.todo\|coming soon\|insert here\|example only" .` — must return zero results
-
-**Directory/tree view — maintain awareness:**
-- After creating each major section (backend, frontend, agents, etc.), run `find . -type f | sort` and verify the structure matches the spec exactly
-- If any file from the spec is missing, create it before moving on
+Full spec: read `docs/DESIGN_DOCUMENT.md`
+Current phase: **Phase 2 (AI generation engine) — not yet started**
+Phase 1 (foundation) is **complete** and merged to `main`.
 
 ---
 
-### CODE QUALITY GATES
+## Non-negotiable rules for every session
 
-Each gate must pass before moving to the next section. Do not proceed if a gate fails — fix it first.
+### Before writing any code
+- Run: `find . -type f | grep -v node_modules | grep -v __pycache__ | grep -v .git | sort`
+- Read every file you will touch BEFORE touching it
+- Never rebuild what Phase 1 already built — only extend it
+- Bring up the DB first for any DB-touching work: `docker compose up -d db` (Postgres is on host port **5433**, not 5432)
 
-**Gate 1 — After database schema:**
-```bash
-# Validate SQL syntax
-psql $DATABASE_URL -f alembic/versions/001_initial.sql --dry-run
-# Confirm all tables exist
-psql $DATABASE_URL -c "\dt"
-# Confirm pgvector extension
-psql $DATABASE_URL -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+### Architecture decisions (decided — do not relitigate)
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| ORM | SQLAlchemy 2.0 + Alembic only | One schema system, no drift. No Prisma. |
+| Embeddings | sentence-transformers `BAAI/bge-large-en-v1.5` (1024 dims) | No external embedding API needed. Runs in Docker. Schema columns are `vector(1024)`. |
+| Auth | Self-contained JWT (HS256) | Runs fully offline. Supabase-shaped for easy swap. |
+| AI Provider | Sarvam AI (`sarvam-105b`) — via provider-agnostic layer | See AI Provider Layer section below |
+| Browser automation | Playwright (Python, async) | Best Python ATS automation support |
+| Frontend data | `lib/api.ts` (axios + JWT interceptor) only | No direct URL/`fetch()` calls in components ever |
+| UI system | Blueprint design system | radius=0, hard offset shadows, VT323/Source Serif 4/JetBrains Mono fonts, `#3553ff` accent |
+
+> **Note on the AI provider decision:** the original Phase 1 design document
+> (`docs/superpowers/specs/2026-06-19-applypilot-design.md`) named Anthropic
+> Claude as the generation LLM. That decision was superseded at Phase 1
+> close-out: generation now runs through a **provider-agnostic AI layer** with
+> **Sarvam AI** as the default provider. Anthropic remains available as a
+> provider for vision tasks only (Phase 6). `docs/DESIGN_DOCUMENT.md` carries the
+> reconciled, current version.
+
+### AI Provider Layer (provider-agnostic — Phase 2+)
+
+Current provider: **Sarvam AI**
+```
+AI_PROVIDER=sarvam
+Model: sarvam-105b   (or sarvam-30b for lower cost)
 ```
 
-**Gate 2 — After all backend Python files:**
-```bash
-cd backend
-pip install -r requirements.txt -q
-python -m pytest tests/ -v --tb=short 2>&1
-mypy . --ignore-missing-imports --strict 2>&1 | tail -20
-flake8 . --max-line-length=100 --exclude=alembic/ 2>&1 | head -30
-```
+To switch provider: change `AI_PROVIDER` in `.env`. **Zero code changes anywhere else.**
+Available: `sarvam | anthropic | openai | ollama`
 
-**Gate 3 — After all frontend files:**
-```bash
-cd frontend
-npm install --silent
-npx tsc --noEmit 2>&1
-npx eslint . --ext .ts,.tsx --max-warnings=0 2>&1 | tail -30
-npx next build 2>&1 | tail -20
-```
-
-**Gate 4 — After docker-compose:**
-```bash
-docker-compose config --quiet && echo "✓ compose valid"
-docker-compose build --no-cache 2>&1 | tail -30
-docker-compose up -d
-sleep 10
-curl -f http://localhost:8000/health && echo "✓ backend up"
-curl -f http://localhost:3000 && echo "✓ frontend up"
-docker-compose down
-```
-
-**Gate 5 — Final integration check:**
-```bash
-# Run full test suite inside Docker
-docker-compose run --rm backend pytest tests/ -v
-# Confirm no circular imports
-cd backend && python -c "from main import app; print('✓ app imports clean')"
-# Confirm all env vars documented
-diff <(grep -oP '(?<=os.getenv\(")[^"]+' backend/**/*.py | sort -u) \
-     <(grep -oP '(?<==)[A-Z_]+(?=\n|$)' .env.example | sort -u)
-```
-
----
-
-### SELF-REVIEW PROTOCOL
-
-After completing each major module, stop and run this review before continuing:
-
-**For every Python file, verify:**
-- [ ] All functions have type hints (params + return type)
-- [ ] All functions have docstrings (Google style: Args, Returns, Raises)
-- [ ] No bare `except:` clauses — always `except SpecificError as e:`
-- [ ] No `print()` statements — use `logger.info()` / `logger.error()`
-- [ ] All database sessions properly closed (use context managers)
-- [ ] All Playwright browser instances have `async with` / proper cleanup
-- [ ] No secrets or tokens in code — only `settings.VARIABLE_NAME` references
-- [ ] Every Celery task has `autoretry_for`, `max_retries`, and `default_retry_delay`
-
-**For every TypeScript/React file, verify:**
-- [ ] No `any` types — use proper interfaces or `unknown` with type guards
-- [ ] All async functions have try/catch with user-facing error states
-- [ ] All API calls use the centralized `lib/api.ts` instance (not raw fetch)
-- [ ] All forms have loading + disabled states during submission
-- [ ] All error states render user-friendly messages (not raw error objects)
-- [ ] All data-fetching hooks handle: loading, error, empty, and success states
-- [ ] No hardcoded API URLs — use `process.env.NEXT_PUBLIC_API_URL`
-
-**For every API endpoint, verify:**
-- [ ] Auth middleware applied (no unprotected routes except /health and /webhooks)
-- [ ] Input validated via Pydantic schema
-- [ ] Returns correct HTTP status codes (201 for create, 404 for not found, 422 for validation)
-- [ ] Has OpenAPI summary + description docstring
-- [ ] Rate limiting middleware applied
-- [ ] Plan guard middleware applied where needed
-
----
-
-### DOCUMENTATION STANDARDS
-
-Every file must have a header block. Use these exact formats:
-
-**Python:**
+**THE RULE:** Agents and routers MUST NEVER import AI SDKs directly.
+Always use:
 ```python
-"""
-Module: agents/job_scraper.py
-Purpose: Playwright-based scraper for 10 job board sources. Runs as a
-         Celery periodic task, deduplicates by (company+role+date), computes
-         JD embeddings, and scores match against user resume.
-Dependencies: Playwright, BeautifulSoup4, anthropic, celery
-Celery task: scrape_jobs_for_user (triggered by beat schedule every 6h)
-Author: ApplyPilot
-"""
+from services.ai import get_ai_provider, GenerationRequest, AIMessage
 ```
 
-**TypeScript:**
-```typescript
-/**
- * @module components/applications/ApplicationKanban
- * @description Drag-and-drop Kanban board for tracking application pipeline.
- *              Columns map to application.status enum values. Optimistic
- *              updates via React Query mutation on card move.
- * @dependencies @dnd-kit/core, @tanstack/react-query, shadcn/ui
- */
+To add a new provider: see `docs/AI_PROVIDER_LAYER.md`
+
+Vision tasks (Phase 6 form-fill): set `AI_PROVIDER=anthropic`.
+`sarvam-105b` is text-only — no image input.
+
+> **Status:** The `services/ai/` layer does **not exist yet** — it is the first
+> deliverable of Phase 2. The contract above is the agreed shape; build it per
+> `docs/phases/PHASE_2.md`.
+
+### Code quality rules (every session)
+- All Python functions: type hints on every param and return value
+- All Python functions: Google-style docstrings (Args / Returns / Raises)
+- No bare `except:` — always `except SpecificError as e:`
+- No `print()` — always `logger.info()` / `logger.error()`
+- No `any` TypeScript types — use proper interfaces or `unknown` with guards
+- No hardcoded secrets — always `settings.VARIABLE_NAME` or `process.env.NEXT_PUBLIC_*`
+- No direct `fetch()` in frontend — always `lib/api.ts`
+- No hardcoded colors in frontend — only semantic Blueprint tokens (`bg`, `ink`, `blueprint`, `warn`, …); hex/`rgb()`/Tailwind color-scale utilities are forbidden outside `app/globals.css`
+
+### After writing every file
+```bash
+# Python
+python -m py_compile <file>.py
+
+# TypeScript
+cd frontend && npx tsc --noEmit --skipLibCheck 2>&1 | head -20
+
+# No TODOs
+grep -n "TODO\|FIXME\|placeholder" <file>
 ```
 
-**Every function/method must have:**
-```python
-def find_recruiter_contact(company: str, role: str, user_id: str) -> Contact | None:
-    """
-    Discovers recruiter contact info for a given company and role.
-
-    Uses SerpAPI to find LinkedIn profiles, then crawls the profile
-    page with Playwright to extract name, title, and LinkedIn URL.
-    Email is guessed via pattern matching and validated via SMTP handshake.
-
-    Args:
-        company: Company name as it appears on their website (e.g. "Stripe")
-        role: Job role title (e.g. "Software Engineer Intern")
-        user_id: UUID of the requesting user (for usage logging)
-
-    Returns:
-        Contact object if found, None if no reliable contact discovered.
-
-    Raises:
-        RateLimitError: If SerpAPI quota is exhausted for the day.
-        ScrapingBlockedError: If LinkedIn detects and blocks the crawler.
-
-    Example:
-        >>> contact = find_recruiter_contact("Stripe", "SWE Intern", "uuid-123")
-        >>> contact.email
-        'recruiting@stripe.com'
-    """
+### Quality gates (run before declaring any phase done)
+```bash
+# Postgres must be up first: docker compose up -d db
+cd backend && DATABASE_URL=postgresql+psycopg2://applypilot:applypilot@localhost:5433/applypilot \
+  pytest tests/ --cov=. --cov-fail-under=70 -q
+cd frontend && npx tsc --noEmit && npx eslint . --ext .ts,.tsx --max-warnings=0
+cd frontend && npx next build
 ```
 
 ---
 
-### TESTING REQUIREMENTS
+## Phase completion status
 
-Write tests as you build each module — not after. Minimum coverage:
+| Phase | Status | Branch | Key deliverables |
+|-------|--------|--------|-----------------|
+| 1 — Foundation | **COMPLETE** | `main` | Docker stack, all 10 DB models + migration, JWT auth, CRUD APIs, frontend shell, Blueprint UI, 109 tests @ 98% |
+| 2 — AI Generation | **NEXT (not started)** | `phase-2` (create from `main`) | Provider-agnostic AI layer, embeddings service, Sarvam service, email generator agent, match scoring |
+| 3 — Scraping | Queued | — | Job scraper agents (10 sources), dedup, beat schedule |
+| 4 — Email Loop | Queued | — | Gmail OAuth, send, tracking, reply polling, follow-ups, contact finder |
+| 5 — Billing | Queued | — | Stripe, plan enforcement, usage metering |
+| 6 — Polish | Queued | — | ATS form filler (needs vision — use `AI_PROVIDER=anthropic`), feedback learner, GDPR, CI/CD |
 
-**Backend (pytest):**
-tests/
+Per-phase specs live in `docs/phases/PHASE_*.md`. Phase 2 is a complete standalone
+build spec; Phases 3–6 are one-page overviews.
 
-├── conftest.py                  # fixtures: test DB, mock Claude, mock Gmail
+---
 
-├── test_auth.py                 # JWT validation, expired token, wrong user
+## What Phase 1 built (never rebuild — only import and extend)
 
-├── test_jobs.py                 # scrape trigger, dedup logic, match scoring
+### Database (all 10 tables exist and are migrated — `backend/alembic/versions/001_initial.py`)
+`users`, `resumes`, `jobs`, `applications`, `contacts`,
+`email_accounts`, `follow_ups`, `agent_runs`, `feedback`, `usage_logs`.
+pgvector extension enabled. `vector(1024)` columns on `resumes.embedding` and
+`jobs.jd_embedding` (both NULL in Phase 1 — populated in Phase 2/3). IVFFlat
+cosine indexes exist on both. RLS policies are written into the migration as the
+documented Supabase-swap path; **active tenant isolation is at the API layer**
+(every query filtered by `current_user.id`).
 
-├── test_applications.py         # CRUD, status transitions, plan limit enforcement
+### Backend (working — just import)
+- `backend/config.py` — typed `settings` (pydantic-settings). All config via env.
+- `backend/database.py` — `engine`, `SessionLocal`, declarative `Base`.
+- `backend/deps.py` — `get_db`, `get_redis`, `get_current_user` (use this dependency on every new authed route).
+- `backend/security/jwt.py` — `hash_password`, `verify_password`, `create_access_token`, `create_refresh_token`, `decode_token`.
+- `backend/services/storage_service.py` — MinIO file upload/delete (`get_storage` dependency).
+- `backend/middleware/rate_limiter.py` — Redis sliding-window limiter (fails open on Redis errors; `/health` exempt).
+- `backend/utils/logger.py` — structured JSON logger with token/PII scrubbing.
 
-├── test_agents/
+### Working API endpoints (the ONLY routers that exist — read `docs/API_REFERENCE.md`)
+- `/health` — liveness (unauthenticated)
+- `/auth/signup`, `/auth/login`, `/auth/refresh`, `/auth/me` — full JWT flow
+- `/jobs` — list (filter/paginate) + get-by-id + create (manual/seed). **No update/delete** (scraper owns jobs in Phase 3).
+- `/applications` — full CRUD (POST/GET-list/GET-id/PATCH/DELETE) + status transitions via PATCH
+- `/resumes` — upload to MinIO + list + delete
+- `/dashboard/stats` — aggregate stats (counts, per-status, reply_rate, recent)
 
-│   ├── test_job_scraper.py      # mock Playwright, assert dedup + embedding
+> **No routers exist yet for** `contacts`, `email_accounts`, `follow_ups`,
+> `agent_runs`, `feedback`, `usage_logs`, or user management beyond `/auth/me`.
+> The tables exist; the routers arrive in later phases. Do not assume a
+> `/contacts` endpoint — it is not built.
 
-│   ├── test_contact_finder.py   # mock SerpAPI, assert email pattern logic
+### Frontend pages (working — extend, do not recreate)
+`/login`, `/signup` (auth group); `/dashboard`, `/jobs`, `/jobs/[id]`,
+`/applications`, `/applications/[id]`, `/settings` (dashboard group).
+Components: `Sidebar`, `TopNav`, `ThemeToggle`, `PlanBadge`, `JobCard`, `JobFeed`,
+`JobFilters`, `ApplicationKanban`, `ApplicationTable`, `TimelineView`, `StatsGrid`,
+`ActivityFeed`, `ReplyRateChart`, and `ui/` primitives (`button`, `card`, `input`, `badge`).
+Hooks: `useMe`, `useJobs`, `useApplications`, `useDashboard`, `useResumes`.
+Stores: `authStore` (tokens), `uiStore` (theme/UI).
 
-│   ├── test_email_generator.py  # mock Claude, assert JSON parse + storage
+### Infrastructure
+`docker-compose.yml` — `db` (postgres+pgvector, host `5433`), `redis`, `minio`,
+`backend`, `frontend`. **Celery worker/beat are NOT in compose yet** — they arrive
+in Phase 2 when the first async task lands.
+Env documented in `backend/.env.example` and `frontend/.env.local.example`.
 
-│   └── test_form_filler.py      # mock Playwright, assert field mapping
+---
 
-├── test_billing.py              # Stripe webhook signature, plan upgrade/downgrade
+## External credentials needed
 
-├── test_rate_limiter.py         # Redis sliding window, plan limits
+| Key | Feature | Phase | Missing-key behaviour |
+|-----|---------|-------|-----------------------|
+| `SARVAM_API_KEY` | AI generation | 2 | Return `503 feature_unavailable` |
+| `SERPAPI_KEY` | Recruiter contact search | 4 | Disable contact finder |
+| `HUNTER_API_KEY` | Email discovery | 4 | Fall back to pattern guessing |
+| `STRIPE_SECRET_KEY` | Billing | 5 | Disable billing endpoints |
+| Gmail OAuth creds | Email send | 4 | Disable send feature |
+| `ANTHROPIC_API_KEY` | ATS form-fill vision (Phase 6) | 6 | Disable form filler |
 
-└── test_security.py             # SQL injection attempts, auth bypass attempts
+All missing optional keys: return `{"error":"feature_unavailable","reason":"api_key_not_configured"}` with HTTP **503**.
+Never crash on a missing optional key. (Phase 1 needs **no** keys to run.)
 
-Every test must:
-- Mock all external APIs (Claude, Gmail, SerpAPI, Stripe) — no real API calls in tests
-- Use a separate test database (fixtures create + teardown per test)
-- Test the unhappy path as much as the happy path
-- Assert on HTTP status codes AND response body shape
+---
 
-Run and fix until this passes:
+## Common commands
+
 ```bash
-pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=75
+# Start everything
+docker compose up -d
+
+# Start just the DB (needed for host-side tests)
+docker compose up -d db                # Postgres on host port 5433
+
+# Backend dev (outside Docker)
+cd backend && DATABASE_URL=postgresql+psycopg2://applypilot:applypilot@localhost:5433/applypilot \
+  uvicorn main:app --reload --port 8000
+
+# Run tests (host) — DB must be up
+cd backend && DATABASE_URL=postgresql+psycopg2://applypilot:applypilot@localhost:5433/applypilot \
+  pytest tests/ -v
+
+# Coverage
+cd backend && DATABASE_URL=...localhost:5433/applypilot pytest tests/ --cov=. --cov-report=term-missing
+
+# Run tests (Docker)
+docker compose run --rm backend pytest tests/ -q
+
+# Seed sample data (DB must be up)
+DATABASE_URL=postgresql+psycopg2://applypilot:applypilot@localhost:5433/applypilot python scripts/seed.py
+
+# New DB migration
+cd backend && alembic revision --autogenerate -m "describe_change"
+cd backend && alembic upgrade head
+# (helper: bash scripts/new_migration.sh)
+
+# Frontend dev
+cd frontend && npm run dev
+
+# Celery worker (Phase 2+, once tasks/celery_app.py exists)
+cd backend && celery -A tasks.celery_app worker --loglevel=info
+
+# Full rebuild
+docker compose down -v && docker compose up -d --build
+
+# Health check / test runner helpers
+bash scripts/check_health.sh
+bash scripts/run_tests.sh
 ```
 
 ---
 
-### DEPENDENCY PINNING
+## Known issues / watch-outs
+Source: `docs/PRODUCTION_HARDENING.md` (full backlog) and the Phase 1 deferred ledger.
 
-requirements.txt must use exact versions. After writing it, run:
-```bash
-pip install -r requirements.txt
-pip freeze > requirements.lock.txt
-```
-
-package.json must use exact versions (no `^` or `~`). After writing it, run:
-```bash
-npm install
-npm shrinkwrap
-```
-
----
-
-### FINAL HANDOFF CHECKLIST
-
-Before declaring the build complete, run this full checklist in bash and output the results:
-
-```bash
-echo "=== APPLYPILOT BUILD VERIFICATION ==="
-
-echo "\n[1] No broken imports (Python)"
-find backend -name "*.py" | xargs python -m py_compile && echo "✓ All Python files compile"
-
-echo "\n[2] No TypeScript errors"
-cd frontend && npx tsc --noEmit && echo "✓ TypeScript clean" && cd ..
-
-echo "\n[3] No TODO/placeholder code remaining"
-TODOS=$(grep -rn "TODO\|FIXME\|placeholder\|NotImplemented\|coming soon" --include="*.py" --include="*.ts" --include="*.tsx" . | grep -v ".git" | grep -v "node_modules" | wc -l)
-echo "TODOs found: $TODOS" && [ "$TODOS" -eq 0 ] && echo "✓ Zero TODOs"
-
-echo "\n[4] No hardcoded secrets"
-SECRETS=$(grep -rn "sk-ant\|sk-\|password123\|hardcoded" --include="*.py" --include="*.ts" . | grep -v ".git" | wc -l)
-echo "Secrets found: $SECRETS" && [ "$SECRETS" -eq 0 ] && echo "✓ No hardcoded secrets"
-
-echo "\n[5] Test suite"
-cd backend && pytest tests/ --tb=short -q 2>&1 | tail -5 && cd ..
-
-echo "\n[6] All spec files present"
-REQUIRED_FILES=(
-  "backend/main.py"
-  "backend/agents/job_scraper.py"
-  "backend/agents/contact_finder.py"
-  "backend/agents/email_generator.py"
-  "backend/agents/form_filler.py"
-  "backend/agents/follow_up_scheduler.py"
-  "backend/agents/feedback_learner.py"
-  "backend/tasks/celery_app.py"
-  "backend/services/gmail_service.py"
-  "backend/services/anthropic_service.py"
-  "backend/services/stripe_service.py"
-  "backend/prompts/cold_email.txt"
-  "frontend/app/(dashboard)/dashboard/page.tsx"
-  "frontend/app/(dashboard)/applications/page.tsx"
-  "frontend/app/(dashboard)/agents/page.tsx"
-  "frontend/components/applications/ApplicationKanban.tsx"
-  "docker-compose.yml"
-  ".github/workflows/deploy.yml"
-  "README.md"
-)
-for f in "${REQUIRED_FILES[@]}"; do
-  [ -f "$f" ] && echo "✓ $f" || echo "✗ MISSING: $f"
-done
-
-echo "\n=== BUILD VERIFICATION COMPLETE ==="
-```
-
-If any check fails, fix it. Do not output "build complete" until every check passes with ✓.
+- **ISSUE:** `backend/entrypoint.sh` runs `uvicorn --reload` (dev mode, single worker). | WORKAROUND: fine for local/dev. | PHASE: 6 (prod hardening — switch to gunicorn + UvicornWorker).
+- **ISSUE:** `JWT_SECRET` defaults to `dev-only-insecure-change-me`; no startup guard. | WORKAROUND: override via env in any non-local run. | PHASE: 6 (fail fast when `app_env != development`).
+- **ISSUE:** Refresh tokens (14d) cannot be revoked/rotated; no logout-everywhere. | WORKAROUND: short access TTL (30 min) limits blast radius. | PHASE: 6 (Redis jti store + rotation).
+- **ISSUE:** Frontend stores tokens in `localStorage` (XSS-readable). | WORKAROUND: acceptable for local dev. | PHASE: 6 (httpOnly Secure SameSite cookies).
+- **ISSUE:** `/health` is liveness-only (does not check DB/Redis/MinIO). | WORKAROUND: none needed for Phase 1. | PHASE: 6 (add readiness probe).
+- **ISSUE:** Rate limiter fails **open** on Redis errors (a Redis outage disables limiting). | WORKAROUND: intentional availability trade-off, documented. | PHASE: 6 (confirm or add bounded in-process fallback).
+- **ISSUE:** `storage_service.py` real MinIO I/O is only covered by the Docker integration test (43% unit-line coverage). | WORKAROUND: faked in unit tests. | PHASE: 6 (MinIO testcontainer).
+- **ISSUE:** Signup returns `409` on existing email = user enumeration. | WORKAROUND: deliberate per UX spec. | PHASE: N/A (documented choice).
+- **ISSUE:** Application status transitions have no rules — any valid enum value is accepted via PATCH. | WORKAROUND: none. | PHASE: 2+ (add a state machine if needed).
+- **ISSUE:** Job dedup unique key is `(company, role, posted_at)`; rows with NULL `posted_at` are not deduped. | WORKAROUND: manual/seed jobs only in Phase 1. | PHASE: 3 (scraper normalizes `posted_at`).
+- **ISSUE:** No `contacts`/user-CRUD router, no resume download/presigned-URL endpoint. | WORKAROUND: tables exist; access deferred. | PHASE: 4 (contacts), 2+ (resume download if needed).
 
 ---
-
-### CLAUDE CODE SESSION STRATEGY
-
-Work in this exact order. Do not skip ahead:
-
-1. Scaffold directory structure (mkdir -p all folders, touch all files)
-2. Write + validate database schema → Gate 1
-3. Write config.py, database.py, all models → compile check
-4. Write all services (Gmail, Claude, Stripe, Storage) → compile check
-5. Write all agents (one at a time, test each) → Gate 2 partial
-6. Write Celery tasks → import check
-7. Write all FastAPI routers → curl each endpoint
-8. Write middleware (rate limiter, plan guard) → Gate 2 full
-9. Write full pytest test suite → must hit 75% coverage
-10. Write Next.js frontend (pages + components) → Gate 3
-11. Write Docker + CI/CD config → Gate 4
-12. Write README.md
-13. Run final handoff checklist → Gate 5
-14. Output a summary of every file created, its line count, and its test coverage
-
-After step 14, the build is done. Not before.
+(end of CLAUDE.md)

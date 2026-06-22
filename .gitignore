@@ -2,5 +2,28 @@
 .venv/
 venv/
 
+# Python caches / artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node / Next.js
+node_modules/
+.next/
+
+# Generated coverage report (scripts/run_tests.sh writes here)
+docs/coverage/
+
+# Secrets — never commit real env files
+.env
+*.env
+!.env.example
+!**/.env.example
+!**/*.env.example
+frontend/.env.local
+
 # OS / editor
 .DS_Store
